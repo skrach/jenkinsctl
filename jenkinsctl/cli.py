@@ -13,6 +13,7 @@ from jenkinsctl.commands.json import json_handler
 from jenkinsctl.commands.list import list_handler
 from jenkinsctl.commands.logs import logs_handler
 from jenkinsctl.commands.rebuild import rebuild_handler
+from jenkinsctl.commands.wait import wait_handler
 from jenkinsctl.configs.logging_config import setup_logging
 from jenkinsctl.jenkins.cli_helper import error_handler_and_session
 
@@ -57,6 +58,23 @@ def logs_command(job_name: str, build_no: Optional[int]) -> None:
         logs_handler(session, job_name, build_no)
 
 
+@cli.command("wait")
+@click.argument("job_name")
+@click.argument("build_no", required=False, type=int)
+@click.option("-t", "--timeout", default=3600, type=int, help="Maximum time to wait in seconds (default: 3600)")
+@click.option("-i", "--interval", default=2, type=int, help="Polling interval in seconds (default: 2)")
+def wait_command(job_name: str, build_no: Optional[int], timeout: int, interval: int) -> None:
+    """
+    Wait for a Jenkins build to reach a terminal state
+
+    \b
+    JOB_NAME: Name of the Jenkins job
+    BUILD_NO: Build number (default: last build)
+    """
+    with error_handler_and_session() as session:
+        wait_handler(session, job_name, build_no, timeout, interval)
+
+
 @cli.command("json")
 @click.argument("job_name")
 @click.argument("build_no", required=False, type=int)
@@ -90,7 +108,10 @@ def config_command(job_name: str, build_no: Optional[int]) -> None:
 @cli.command("rebuild")
 @click.argument("job_name")
 @click.argument("build_no", required=False, type=int)
-def rebuild_command(job_name: str, build_no: Optional[int]) -> None:
+@click.option("-w", "--wait", is_flag=True, help="Wait for build to complete")
+@click.option("-t", "--timeout", default=3600, type=int, help="Maximum time to wait in seconds (default: 3600)")
+@click.option("-i", "--interval", default=2, type=int, help="Polling interval in seconds (default: 2)")
+def rebuild_command(job_name: str, build_no: Optional[int], wait: bool, timeout: int, interval: int) -> None:
     """
     Rebuild a specific Jenkins job
 
@@ -99,20 +120,23 @@ def rebuild_command(job_name: str, build_no: Optional[int]) -> None:
     BUILD_NO: Build number (default: last build)
     """
     with error_handler_and_session() as session:
-        rebuild_handler(session, job_name, build_no)
+        rebuild_handler(session, job_name, build_no, wait, timeout, interval)
 
 
 @cli.command("build")
 @click.option("-p", "--param", multiple=True,
               help="Override parameters in the YAML configuration (e.g., --param key=value)")
 @click.option("-f", "--file", type=click.File('r'), required=True, help="YAML configuration file for the Jenkins job")
-def build_command(file: TextIOWrapper, param: tuple[str]) -> None:
+@click.option("-w", "--wait", is_flag=True, help="Wait for build to complete")
+@click.option("-t", "--timeout", default=3600, type=int, help="Maximum time to wait in seconds (default: 3600)")
+@click.option("-i", "--interval", default=2, type=int, help="Polling interval in seconds (default: 2)")
+def build_command(file: TextIOWrapper, param: tuple[str], wait: bool, timeout: int, interval: int) -> None:
     """
     Trigger a new Jenkins build
     """
     params = [p for p in param]
     with error_handler_and_session() as session:
-        build_handler(session, file, params)
+        build_handler(session, file, params, wait, timeout, interval)
 
 
 @cli.command("enable-completion")
